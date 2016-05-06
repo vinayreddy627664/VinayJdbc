@@ -1,0 +1,169 @@
+package org.jnit.jdbc;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.sql.*;
+
+public class JdbcMain {
+
+	public static void main(String[] args) throws ClassNotFoundException {
+		// getPatientDetails();
+
+		/*
+		 * //OneToOne PatientInfo p = onetoone(2);
+		 * System.out.println(p.getPname()); System.out.println(p.getPphone());
+		 * System.out.println(p.getTreatment().getStatus());
+		 * System.out.println(p.getTreatment().getType()); System.out.println(
+		 * "-----------------------------------------------------------------");
+		 */
+
+		// manyTomany
+		Doctor_Hospital doc = getHospitalsinfo(1001);
+		System.out.println(doc.getDoctors().getDoc_name());
+		doc.getDoctors().getHospitals().forEach(t -> System.out.println(t.getH_name()));
+		
+		//manyTomany
+		Doctor_Hospital hos = getHospitalsinfo(51);
+		System.out.println(hos.getHospitals().getH_name());
+		hos.getHospitals().getDoctors().forEach(t -> System.out.println(t.getDoc_name()));
+		
+
+		// OneToMany
+	}
+
+	public static void getPatientDetails() throws ClassNotFoundException {
+		try {
+			Connection conn = DBConnectionUtility.getConnection();
+			Statement st = conn.createStatement();
+			String sql = "select * from patient_info";
+			ResultSet rs = st.executeQuery(sql);
+			while (rs.next()) {
+				System.out.println(rs.getString("p_id"));
+				System.out.println(rs.getString(2));
+			}
+			rs.close();
+			st.close();
+			conn.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static PatientInfo onetoone(int pid) throws ClassNotFoundException {
+		PatientInfo patient = new PatientInfo();
+		TreatmentInfo t = new TreatmentInfo();
+		try {
+			Connection myconn = DBConnectionUtility.getConnection();
+			String query = ("select p.p_name,p.p_phone,t.type,t.status from javatraining.patient_info p join javatraining.treatment_info t on p.p_id = t.p_id where p.p_id =?");
+			PreparedStatement pstmt = myconn.prepareStatement(query);
+			pstmt.setInt(1, pid);
+			ResultSet myRs = pstmt.executeQuery();
+			while (myRs.next()) {
+				patient.setPname(myRs.getString("p_name"));
+				patient.setPphone(myRs.getInt("p_phone"));
+				t.setStatus(myRs.getString("status"));
+				t.setType(myRs.getString("type"));
+				patient.setTreatment(t);
+			}
+			myconn.close();
+			pstmt.close();
+			myRs.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return patient;
+
+	}
+
+	public static Doctor oneToMany(int doc_id) throws ClassNotFoundException {
+		Doctor d = new Doctor();
+		try {
+			List<TreatmentInfo> tList = new ArrayList<>();
+			Connection conn = DBConnectionUtility.getConnection();
+			String query = "select d.doc_name,d.category,t.type,t.status from javatraining.doctor d join javatraining.treatment_info t where d.doc_id=t.doc_id and doc_id=?";
+			PreparedStatement pst = conn.prepareStatement(query);
+			pst.setInt(1, doc_id);
+			ResultSet myRs = pst.executeQuery();
+			while (myRs.next()) {
+				d.setDoc_name(myRs.getString("doc_name"));
+				d.setCategory(myRs.getString("category"));
+				TreatmentInfo t = new TreatmentInfo();
+				t.setType(myRs.getString("type"));
+				t.setStatus(myRs.getString("status"));
+				// adding the values to the data structure
+				tList.add(t);
+			}
+			// Setting treatment_info to the doctor
+			d.settList(tList);
+			myRs.close();
+			pst.close();
+			conn.close();
+		} catch (SQLException e) {
+			System.out.println("Failed to connect to the server");
+			e.printStackTrace();
+		}
+		return d;
+	}
+
+	public static Doctor_Hospital getHospitalsinfo(int DocId) throws ClassNotFoundException {
+		Doctor_Hospital doctorHospital = new Doctor_Hospital();
+		Doctor doctor = new Doctor();
+		try {
+			Connection myconn = DBConnectionUtility.getConnection();
+			List<Hospital> hospitals = new ArrayList<>();
+			String query = "select d.doc_name,h.h_name from doctor d join doctor_hospital dh on d.doc_id = dh.doc_id join hospital h on h.h_id = dh.h_id where d.doc_id = ?;";
+			PreparedStatement pstmt = myconn.prepareStatement(query);
+			pstmt.setInt(1, DocId);
+			ResultSet myRs = pstmt.executeQuery();
+			while (myRs.next()) {
+				doctor.setDoc_name(myRs.getString("doc_name"));
+				Hospital h = new Hospital();
+				h.setH_name(myRs.getString("h_name"));
+				hospitals.add(h);
+			}
+			doctor.setHospitals(hospitals);
+			doctorHospital.setDoctors(doctor);
+			myconn.close();
+			pstmt.close();
+			myRs.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return doctorHospital;
+
+	}
+
+	public static Doctor_Hospital getDoctorsinfo(int HospitalId) throws ClassNotFoundException {
+		Doctor_Hospital doctorHospital = new Doctor_Hospital();
+		Hospital hospital = new Hospital();
+		try {
+			Connection myconn = DBConnectionUtility.getConnection();
+			List<Doctor> doctors = new ArrayList<>();
+			String query = "select d.doc_name,h.h_name from doctor d join doctor_hospital dh on d.doc_id = dh.doc_id join hospital h on h.h_id = dh.h_id where h.h_id = ?;";
+			PreparedStatement pstmt = myconn.prepareStatement(query);
+			pstmt.setInt(1, HospitalId);
+			ResultSet myRs = pstmt.executeQuery();
+			while (myRs.next()) {
+				hospital.setH_name(myRs.getNString("h_name"));
+				;
+				Doctor d = new Doctor();
+				d.setDoc_name(myRs.getString("doc_name"));
+				doctors.add(d);
+			}
+			hospital.setDoctors(doctors);
+			;
+			doctorHospital.setHospitals(hospital);
+			;
+			myconn.close();
+			pstmt.close();
+			myRs.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return doctorHospital;
+
+	}
+}
